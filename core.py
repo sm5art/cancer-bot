@@ -1,84 +1,71 @@
 import asyncio
-import discord
+import discord.discord as discord
+import audioop
 import argparse
+import array
 import logging
+import struct
 import os
 from audio import play, volume
-
+from reddit import gime
+import random
+import time
+import wave
+import io
 
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(filename)s:%(lineno)d:%(message)s")
 log = logging.getLogger(__name__)
 
+class FakeAudioSource():
 
+    def __init__(self):
+        self.SAMPLE_RATE = 48000
+        self.SAMPLE_WIDTH = 4
+        self.FRAME_LENGTH = 20
+        self.SAMPLES_PER_FRAME = int(self.SAMPLE_RATE/1000*self.FRAME_LENGTH)
+        self.CHUNK= self.SAMPLES_PER_FRAME * self.SAMPLE_WIDTH
+        self.stream = Stream()
 
-clearconsole = lambda: os.system('cls')
-clearconsole()
+class Stream():
+    def __init__(self):
+        self.buffer = b""
 
-if not discord.opus.is_loaded():
-    # the 'opus' library here is opus.dll on windows
-    # or libopus.so on linux in the current directory
-    # you should replace this with the location the
-    # opus library is located in and with the proper filename.
-    discord.opus.load_opus("libopus-0.dll")
+    def write(self, data):
+        self.buffer += data
 
-
-
-
+    def read(self):
+        temp_bucket = self.buffer
+        self.buffer = b""
+        return temp_bucket
 
 class Bot(discord.Client):
 
-    def __init__(self):
+    def __init__(self, number):
         super().__init__()
-        self.message = None
-        self.player = None
+        self.handler = {}
         self.voice = None
-        self.current = None
-        self.previous = None
-        self.file_name = None
+        self.data = []
+        self.channel = None
+        self.buffer = FakeAudioSource()
+        self.player = None
+        self.parsing = False
 
+    def command(self, name):
+        def decor(func):
+            self.handler[name] = func
+        return decor
 
-    async def on_message(self, message): #On a message
-        #Start checking which command it was. Would like to use a switch statement but python doesnt have one.
-        self.message = message
-        antifurry = ["furry", "yiff", "meow"]
-        for item in antifurry:
-            if item in message.content:
-                await self.delete_message(message)
-                return
+    async def on_speak(self, data, ssrc, timestamp, sequence):
+        pass
 
-        if message.content.startswith('join') and any(message.author.roles[x].name == 'botmaster' for x in range(1, 10)): #When telling the bot to join a channel
+    async def on_message(self, message):
+        if message.author == self.user:
+            return
+        for i in self.handler.keys():
+            if message.content.startswith(i):
+                await self.handler[i](self, message)
 
-            channel_name = message.content[4:].strip() #Format the message
-            check = lambda c: c.name == channel_name and c.type == discord.ChannelType.voice
-            channel = discord.utils.find(check, message.server.channels)
-
-            if self.voice is not None:
-                await self.voice.disconnect()
-            self.voice = await self.join_voice_channel(channel)
-            # self.starter = message.author
-        elif message.content.startswith('play') and any(message.author.roles[x].name == 'botmaster' for x in range(1, 10)):
-            playItem = message.content[4:].strip()
-            if self.player is not None:
-                self.player.stop()
-
-            if self.voice is not None:
-                await play(playItem, self)
-
-        elif message.content.startswith('vol') and any(message.author.roles[x].name == 'botmaster' for x in range(1, 10)):
-            vol = message.content[3:].strip()
-
-            if self.player is not None:
-                await volume(float(vol), self)
-
-
-        elif message.content.startswith('stop') and any(message.author.roles[x].name == 'botmaster' for x in range(1, 10)):
-
-            if self.player is not None and self.player.is_playing():
-                self.player.stop()
-                log.info("Stopped '{}' from playing".format(self.current))
-            else:
-                log.info("User attempted to stop a song while a song is not playing")
 
 
     async def on_ready(self):
@@ -88,5 +75,89 @@ class Bot(discord.Client):
         print('------')
 
 
-bot = Bot()
-bot.run("nobody has to know")
+
+
+bot = Bot("1")
+
+@bot.command('retard join')
+async def dkfa(bot, message):
+    channel_name = message.content[4:].strip() #Format the message
+    bot.channel = message.channel
+    check = lambda c: c.name == channel_name and c.type == discord.ChannelType.voice
+    channel = discord.utils.find(check, message.server.channels)
+
+    if bot.voice is not None:
+        await bot.voice.disconnect()
+    bot.voice = await bot.join_voice_channel(channel)
+    await bot.enable_voice_events()
+
+@bot.command('play')
+async def dingus(bot, message):
+    if bot.player not in (None, 1) and bot.player.is_playing():
+        bot.player.stop()
+    await play(bot, message)
+
+@bot.command('vol')
+async def dingus(bot, message):
+    await volume(bot, message)
+
+@bot.command('bro')
+async def bro(bot, message):
+    check = lambda c: c.name == "general"
+    channel = discord.utils.find(check, message.server.channels)
+    await bot.send_message(channel, "bro memes")
+
+@bot.command('wtf')
+async def bro(bot, message):
+    check = lambda c: c.name == "general"
+    channel = discord.utils.find(check, message.sehannels)
+    await bot.send_message(channel, "wtf")
+
+@bot.command('join')
+async def dkfa(bot, message):
+    channel_name = message.content[4:].strip() #Format the message
+    bot.channel = message.channel
+    check = lambda c: c.name == channel_name and c.type == discord.ChannelType.voice
+    channel = discord.utils.find(check, message.server.channels)
+
+    if bot.voice is not None:
+        await bot.voice.disconnect()
+    bot.voice = await bot.join_voice_channel(channel)
+
+
+class Mock(object):
+    def __init__(self, content):
+        self.content = content
+
+
+@bot.command('!play')
+async def listen(bot, message):
+    msg = Mock("play shrek ear rape")
+    if bot.player not in (None, 1) and bot.player.is_playing():
+        bot.player.stop()
+    await play(bot, msg)
+
+@bot.command('listen')
+async def listen(bot, message):
+    while True:
+        result = await bot.voice.socket.recv(4096)
+        print( result)
+
+@bot.command('gime')
+async def whatever(bot, message):
+    subreddit = message.content[4:].strip()
+    await gime(message, subreddit, bot)
+
+@bot.command('rng')
+async def listen(bot, message):
+    number = int(message.content[3:].strip())
+    check = lambda c: c.name == "general"
+    channel = discord.utils.find(check, message.server.channels)
+    await bot.send_message(channel, str(int(random.random()*number)+1))
+
+@bot.command('stop')
+async def da(bot, message):
+    if bot.player is not None and bot.player.is_playing():
+        bot.player.stop()
+
+bot.run("")
