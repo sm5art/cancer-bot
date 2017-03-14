@@ -1,6 +1,8 @@
 # cancer-bot
 discord bot for one simple purpose
 
+hell eya
+
 ----
 To do
 ======
