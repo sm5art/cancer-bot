@@ -17,8 +17,8 @@ async def gime(message, text, bot):
     check = lambda c: c.name == "general"
     channel = discord.utils.find(check, message.server.channels)
     if "title" in post:
-        await bot.send_message(channel , post["title"] ,tts=True)
+        await bot.send_message(channel , post["title"] ,tts=False)
     if len(post["selftext"])>0:
-        await bot.send_message(channel , post["selftext"] ,tts=True)
+        await bot.send_message(channel , post["selftext"] ,tts=False)
     if "url" in post:
         await bot.send_message(channel , post["preview"]["images"][0]["source"]["url"] ,tts=False)
